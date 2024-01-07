@@ -72,16 +72,18 @@ def parse_arguments():
 
 def print_menu():
     """ Displays a console menu with options for different operations. """
+    light_blue = '\033[94m'
+    end_color = '\033[0m'
     menu_options = {
-        1: 'Get APT groups from MITRE',
-        2: 'Get APT groups from APT Tracker .xlsx',
-        3: 'Get APT groups TTPs from MITRE',
-        4: 'Update APT Tracker .xlsx',
-        5: 'Update MITRE Enterprise Matrix .json',
+        1: 'Get APT Groups from MITRE ATT&CK',
+        2: 'Get APT Groups from APT Tracker',
+        3: 'Download TTPs of APT Groups from MITRE ATT&CK (JSON)',
+        4: 'Update APT Tracker Spreadsheet',
+        5: 'Update MITRE ATT&CK Enterprise Matrix',
         0: 'Exit'
     }
     for key, value in menu_options.items():
-        print(f"[{key}] {value}")
+        print(f"{light_blue}[{key}]{end_color} {value}")
 
 
 def bar_progress(current, total, width=80):
@@ -209,7 +211,7 @@ def main(arguments):
             while choice not in (1, 2, 3, 4, 5, 0):
                 print_menu()
                 try:
-                    choice = int(input('Enter your choice: '))
+                    choice = int(input('\nEnter your choice: '))
                 except:
                     print('Wrong input. Please enter a number ...')
 
