@@ -4,8 +4,7 @@ import pandas as pd
 import requests
 import sys
 import wget
-
-from mitreattack.stix20 import MitreAttackData
+import json
 
 
 def parse_arguments():
@@ -121,31 +120,29 @@ def update_matrix(matrix_filename: str):
         print(e)
 
 
-def get_groups_from_mitre(filename: str, keywords: list):
+def search_groups_from_mitre(groups: list, keywords: list):
     """ Searches for APT groups in the 'enterprise-attack.json' file based on user-entered keywords. """
     try:
         print('[MITRE]: Searching by keyword(s) in the Description field...')
-        mitre_attack_data = MitreAttackData(filename)
-        groups = mitre_attack_data.get_groups()
         result = []
-        for group in groups:
-            if 'description' in group.keys():
-                for word in keywords:
-                    if word.lower() in group.description.lower():
-                        result.append(dict(group))
+        for word in keywords:
+            filtered_groups = list(filter(lambda x: word.lower() in x['description'].lower(), groups))
+            if filtered_groups:
+                result.extend(filtered_groups)
         if result:
             df = pd.DataFrame(result)
-            df['created'] = df['created'].dt.tz_localize(None)
-            df['modified'] = df['modified'].dt.tz_localize(None)
-            df.iloc[:, 5:10].to_excel('APT Groups list from MITRE.xlsx', sheet_name='APT Groups', index=False)
+            df[['name', 'description', 'aliases', 'external_references']].to_excel(
+                'APT Groups list from MITRE.xlsx',
+                sheet_name='APT Groups', index=False)
             print('[MITRE]: Found!')
         else:
             print('[MITRE]: APT Groups not found.')
+        return
     except Exception as e:
         print(e)
 
 
-def get_groups_from_tracker(filename: str, keywords: list):
+def search_groups_from_tracker(filename: str, keywords: list):
     """ Searches for APT groups in the 'APT Groups and Operations.xlsx' file based on user-entered keywords. """
     try:
         print('[APT Tracker]: Searching by keyword(s) in the Description field...')
@@ -172,16 +169,15 @@ def get_groups_from_tracker(filename: str, keywords: list):
         print(e)
 
 
-def get_groups_ttps_from_mitre(filename: str, apt_groups: list):
+def get_groups_ttps_from_mitre(groups: list, apt_aliases: list):
     """ Downloads TTP information of specified APT groups (json file) from the MITRE website. """
     try:
-        mitre_attack_data = MitreAttackData(filename)
-        for apt in apt_groups:
-            print(f"[MITRE]: Searching APT group '{apt}'...")
-            group = mitre_attack_data.get_groups_by_alias(apt)
-            if group:
-                group_link = group[0].external_references[0].url
-                group_id = group[0].external_references[0].external_id
+        for apt_alias in apt_aliases:
+            print(f"[MITRE]: Searching APT group '{apt_alias}'...")
+            apt_group = list(filter(lambda x: apt_alias.lower() in [str.lower(i) for i in x['aliases']], groups))
+            if apt_group:
+                group_link = apt_group[0].external_references[0].url
+                group_id = apt_group[0].external_references[0].external_id
                 json_name = f"{group_id}-enterprise-layer.json"
                 url = f"{group_link}/{json_name}"
                 req = requests.get(url)
@@ -189,7 +185,21 @@ def get_groups_ttps_from_mitre(filename: str, apt_groups: list):
                     file.write(req.content)
                 print('[MITRE]: Found!')
             else:
-                print(f"[MITRE]: Group '{apt}' not found")
+                print(f"[MITRE]: Group '{apt_alias}' not found")
+        return
+    except Exception as e:
+        print(e)
+
+
+def get_all_groups_from_mitre(filename: str):
+    """ Retrieves all APT groups from the local 'enterprise-attack.json' file. """
+    try:
+        with open(filename, encoding='utf-8') as f:
+            data = json.load(f)
+        groups = list(filter(lambda x: x['type'] == 'intrusion-set' and not (
+                ("x_mitre_deprecated" in x and x["x_mitre_deprecated"]) or ("revoked" in x and x["revoked"])),
+                             data['objects']))
+        return groups
     except Exception as e:
         print(e)
 
@@ -214,16 +224,17 @@ def main(arguments):
                     choice = int(input('\nEnter your choice: '))
                 except:
                     print('Wrong input. Please enter a number ...')
-
-            if choice == 1:
-                keywords = input('Enter keywords to search: ').split(',')
-                get_groups_from_mitre(files['mitre'][0], [str.strip(i) for i in keywords])
-            elif choice == 2:
-                keywords = input('Enter keywords to search: ').split(',')
-                get_groups_from_tracker(files['tracker'][0], [str.strip(i) for i in keywords])
-            elif choice == 3:
-                apt_groups = input('Enter APT groups: ').split(',')
-                get_groups_ttps_from_mitre(files['mitre'][0], [str.strip(i) for i in apt_groups])
+            if choice in (1, 2, 3):
+                groups = get_all_groups_from_mitre(files['mitre'][0])
+                if choice == 1:
+                    keywords = input('Enter keywords to search: ').split(',')
+                    search_groups_from_mitre(groups, [str.strip(i) for i in keywords])
+                elif choice == 2:
+                    keywords = input('Enter keywords to search: ').split(',')
+                    search_groups_from_tracker(files['tracker'][0], [str.strip(i) for i in keywords])
+                elif choice == 3:
+                    apt_groups = input('Enter APT groups: ').split(',')
+                    get_groups_ttps_from_mitre(groups, [str.strip(i) for i in apt_groups])
             elif choice == 4:
                 update_apt_groups(files['tracker'][0])
             elif choice == 5:
@@ -233,13 +244,14 @@ def main(arguments):
             else:
                 print('Wrong input. Please enter a number ...')
         else:
+            groups = get_all_groups_from_mitre(files['mitre'][0])
             if args.keywords:
                 if args.mitre:
-                    get_groups_from_mitre(files['mitre'][0], args.keywords)
+                    search_groups_from_mitre(groups, args.keywords)
                 if args.tracker:
-                    get_groups_from_tracker(files['tracker'][0], args.keywords)
+                    search_groups_from_tracker(files['tracker'][0], args.keywords)
             elif args.groups:
-                get_groups_ttps_from_mitre(files['mitre'][0], args.groups)
+                get_groups_ttps_from_mitre(groups, args.groups)
         return 'Done!'
     except Exception as e:
         print(e)
