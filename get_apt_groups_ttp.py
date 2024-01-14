@@ -130,10 +130,21 @@ def search_groups_from_mitre(groups: list, keywords: list):
             if filtered_groups:
                 result.extend(filtered_groups)
         if result:
-            df = pd.DataFrame(result)
-            df[['name', 'description', 'aliases', 'external_references']].to_excel(
-                'APT Groups list from MITRE.xlsx',
-                sheet_name='APT Groups', index=False)
+            df = pd.DataFrame(result)[['name', 'aliases', 'description']]
+            df['aliases'] = df['aliases'].str.join(', ')
+            df.sort_values(by='name')
+            with pd.ExcelWriter('APT Groups list from MITRE.xlsx', engine='xlsxwriter') as file:
+                df.to_excel(file, sheet_name='APT Groups', index=False)
+                workbook = file.book
+                format_border = workbook.add_format({'border': 1})
+                format_wrap = workbook.add_format({'valign': 'top', 'text_wrap': True})
+                worksheet = file.sheets['APT Groups']
+                worksheet.autofilter(f"A1:C{str(df.shape[0])}")
+                worksheet.conditional_format(f"A1:C{str(df.shape[0] + 1)}",
+                                             {'type': 'no_blanks', 'format': format_border})
+                worksheet.set_column('A:A', 15, format_wrap)
+                worksheet.set_column('B:B', 80, format_wrap)
+                worksheet.set_column('C:C', 150, format_wrap)
             print('[MITRE]: Found!')
         else:
             print('[MITRE]: APT Groups not found.')
@@ -160,7 +171,18 @@ def search_groups_from_tracker(filename: str, keywords: list):
             result = pd.concat([result, df_search])
         if not result.empty:
             result = result.sort_values(by='Common Name')
-            result.to_excel("APT Groups list from APT Tracker.xlsx", sheet_name='APT Groups', index=False)
+            result = result.fillna('-')
+            with pd.ExcelWriter('APT Groups list from APT Tracker.xlsx', engine='xlsxwriter') as file:
+                result.to_excel(file, sheet_name='APT Groups', index=False)
+                workbook = file.book
+                format_border = workbook.add_format({'border': 1})
+                format_wrap = workbook.add_format({'valign': 'top', 'text_wrap': True})
+                worksheet = file.sheets['APT Groups']
+                worksheet.autofilter(f"A1:D{str(result.shape[0])}")
+                worksheet.conditional_format(f"A1:D{str(result.shape[0] + 1)}",
+                                             {'type': 'no_blanks', 'format': format_border})
+                worksheet.set_column('A:A', 40, format_wrap)
+                worksheet.set_column('B:D', 70, format_wrap)
             print('[APT Tracker]: Found!')
         else:
             print('[APT Tracker]: APT Groups not found.')
@@ -176,14 +198,14 @@ def get_groups_ttps_from_mitre(groups: list, apt_aliases: list):
             print(f"[MITRE]: Searching APT group '{apt_alias}'...")
             apt_group = list(filter(lambda x: apt_alias.lower() in [str.lower(i) for i in x['aliases']], groups))
             if apt_group:
-                group_link = apt_group[0].external_references[0].url
-                group_id = apt_group[0].external_references[0].external_id
+                group_link = apt_group[0]['external_references'][0]['url']
+                group_id = apt_group[0]['external_references'][0]['external_id']
                 json_name = f"{group_id}-enterprise-layer.json"
                 url = f"{group_link}/{json_name}"
                 req = requests.get(url)
                 with open(f'jsons/{json_name}', 'wb') as file:
                     file.write(req.content)
-                print('[MITRE]: Found!')
+                print('[MITRE]: Found! JSON files have been downloaded to the ./jsons/ directory.')
             else:
                 print(f"[MITRE]: Group '{apt_alias}' not found")
         return
@@ -252,7 +274,7 @@ def main(arguments):
                     search_groups_from_tracker(files['tracker'][0], args.keywords)
             elif args.groups:
                 get_groups_ttps_from_mitre(groups, args.groups)
-        return 'Done!'
+        return 'Bye!'
     except Exception as e:
         print(e)
 
