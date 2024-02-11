@@ -1,3 +1,6 @@
 pandas
+xlsxwriter
+openpyxl
+pyarrow
 requests
 wget
