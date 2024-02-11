@@ -8,7 +8,11 @@ import json
 
 
 def parse_arguments():
-    """ Parse command line arguments.
+    """
+    The `parse_arguments` function is used to parse command line arguments for a script that analyzes
+    and retrieves information about APT groups and their TTPs.
+    :return: The function `parse_arguments` returns the parsed command-line arguments as an
+    `argparse.Namespace` object.
 
     Arguments:
     -g/--groups: Specifies the names of APT groups for which to download JSON files containing their TTPs.
@@ -70,7 +74,9 @@ def parse_arguments():
 
 
 def print_menu():
-    """ Displays a console menu with options for different operations. """
+    """
+    The `print_menu()` function prints a menu with numbered options.
+    """
     light_blue = '\033[94m'
     end_color = '\033[0m'
     menu_options = {
@@ -86,14 +92,31 @@ def print_menu():
 
 
 def bar_progress(current, total, width=80):
-    """ Updates and displays a progress bar for the wget download process. """
+    """
+    The function `bar_progress` displays the progress of a task as a percentage.
+    
+    :param current: The current progress value. It represents the current progress of a task or
+    operation
+    :param total: The total parameter represents the total number of steps or iterations in the process
+    you are tracking the progress of
+    :param width: The `width` parameter is an optional parameter that specifies the width of the
+    progress bar. By default, it is set to 80 characters, defaults to 80 (optional)
+    """
     progress_message = "Progress: %d%%" % (current / total * 100)
     sys.stdout.write("\r" + progress_message)
     sys.stdout.flush()
 
 
 def update_apt_groups(apt_filename: str):
-    """ Update 'APT Groups and Operations.xlsx' file from Google Drive. """
+    """
+    The function `update_apt_groups` downloads a file from a Google Drive URL and saves it with the
+    specified filename, removing any existing file with the same name.
+    
+    :param apt_filename: The `apt_filename` parameter is a string that represents the name of the file
+    that will be downloaded from Google Drive
+    :type apt_filename: str
+    :return: nothing.
+    """
     try:
         url = 'https://docs.google.com/spreadsheets/d/1H9_xaxQHpWaa4O_Son4Gx0YOIzlcBWMsdvePFX68EKU/pub?output=xlsx'
         if os.path.exists(apt_filename):
@@ -107,7 +130,15 @@ def update_apt_groups(apt_filename: str):
 
 
 def update_matrix(matrix_filename: str):
-    """ Update 'enterprise-attack.json' file from MITRE GitHub. """
+    """
+    The function `update_matrix` downloads a file from a specified URL and saves it with a given
+    filename, removing any existing file with the same name.
+    
+    :param matrix_filename: The `matrix_filename` parameter is a string that represents the name of the
+    file where the matrix will be saved
+    :type matrix_filename: str
+    :return: nothing.
+    """
     try:
         url = 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json'
         if os.path.exists(matrix_filename):
@@ -121,7 +152,17 @@ def update_matrix(matrix_filename: str):
 
 
 def search_groups_from_mitre(groups: list, keywords: list):
-    """ Searches for APT groups in the 'enterprise-attack.json' file based on user-entered keywords. """
+    """
+    The function `search_groups_from_mitre` searches for APT groups in an JSON file (enterprise-attack.json)
+    based on keywords in the description field and exports the results to an Excel file.
+    
+    :param groups: The `groups` parameter is a list of dictionaries, where each dictionary represents an
+    APT group. Each dictionary should have the following keys: 'name', 'aliases', and 'description'
+    :type groups: list
+    :param keywords: A list of keywords to search for in the Description field of the APT groups
+    :type keywords: list
+    :return: The function does not return any value.
+    """
     try:
         print('[MITRE]: Searching by keyword(s) in the Description field...')
         result = []
@@ -154,9 +195,21 @@ def search_groups_from_mitre(groups: list, keywords: list):
 
 
 def search_groups_from_tracker(filename: str, keywords: list):
-    """ Searches for APT groups in the 'APT Groups and Operations.xlsx' file based on user-entered keywords. """
+    """
+    The function `search_groups_from_tracker` searches for APT groups in an Excel file (APT Groups and Operations.xlsx)
+    based on keywords in "Targets" and "Comment" fields and saves the results in a new Excel file.
+    
+    :param filename: The filename parameter is a string that represents the name or path of the Excel
+    file that contains the data to be searched
+    :type filename: str
+    :param keywords: The `keywords` parameter is a list of strings that represent the keywords you want
+    to search for in the "Targets" and "Comment" fields of the APT Tracker data. These keywords will be
+    used to filter the data and find the relevant APT groups
+    :type keywords: list
+    :return: The function does not return any value.
+    """
     try:
-        print('[APT Tracker]: Searching by keyword(s) in the Description field...')
+        print('[APT Tracker]: Searching by keyword(s) in "Targets" and "Comment" fields...')
         df_name = pd.ExcelFile(filename)
         result = pd.DataFrame()
         for sheet in df_name.sheet_names[1:10]:
@@ -192,7 +245,20 @@ def search_groups_from_tracker(filename: str, keywords: list):
 
 
 def get_groups_ttps_from_mitre(groups: list, apt_aliases: list):
-    """ Downloads TTP information of specified APT groups (json file) from the MITRE website. """
+    """
+    The function `get_groups_ttps_from_mitre` searches for APT groups in a given list and downloads JSON
+    files containing information about the groups from the MITRE ATT&CK website.
+    
+    :param groups: The `groups` parameter is a list of dictionaries that represent APT groups. Each
+    dictionary contains information about an APT group, such as its name, aliases, and external
+    references
+    :type groups: list
+    :param apt_aliases: The `apt_aliases` parameter is a list of strings representing the aliases or
+    names of APT (Advanced Persistent Threat) groups. These aliases are used to search for corresponding
+    APT groups in the `groups` list
+    :type apt_aliases: list
+    :return: The function does not explicitly return anything.
+    """
     try:
         for apt_alias in apt_aliases:
             print(f"[MITRE]: Searching APT group '{apt_alias}'...")
@@ -214,7 +280,15 @@ def get_groups_ttps_from_mitre(groups: list, apt_aliases: list):
 
 
 def get_all_groups_from_mitre(filename: str):
-    """ Retrieves all APT groups from the local 'enterprise-attack.json' file. """
+    """
+    The function `get_all_groups_from_mitre` reads a JSON file (enterprise-attack.json), filters out intrusion-set objects that
+    are deprecated or revoked, and returns a list of the remaining groups.
+    
+    :param filename: The `filename` parameter is a string that represents the name or path of the file
+    from which the data will be read
+    :type filename: str
+    :return: a list of groups that meet certain criteria.
+    """
     try:
         with open(filename, encoding='utf-8') as f:
             data = json.load(f)
@@ -227,7 +301,15 @@ def get_all_groups_from_mitre(filename: str):
 
 
 def main(arguments):
-    """ Interacts with the user to execute various functions based on user choices. """
+    """
+    The main function is a Python script that performs various operations related to APT groups and
+    operations, including updating files, searching for keywords, and retrieving TTPs for specific APT
+    groups.
+    
+    :param arguments: The `arguments` parameter is a dictionary that contains the command line arguments
+    passed to the script
+    :return: the string 'Bye!'
+    """
     try:
         if not os.path.exists('jsons'):
             os.mkdir('jsons')
